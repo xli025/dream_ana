@@ -18,6 +18,7 @@ class hsd_peak_finder():
         self.ts_wf = None
         
         self.avail_vars = ['wf', 'pdd', 'tpks', 'len_tpks']
+        self.num_keys = len(self.params['keys'].keys())
 
         self.requested = {}
         self.data_dict = {}
@@ -45,26 +46,39 @@ class hsd_peak_finder():
                 self.find_peaks_fex(*args, **kwargs)  
             else:
                 self.find_peaks_raw(*args, **kwargs)  
-            
-            self.peak_exist = True
+            if self.num_None == self.num_keys:
+                self.peak_exist = False
+            else:
+                self.peak_exist = True
         except Exception as err:
             self.peak_exist = False
+
+        if not self.peak_exist:
             for k1 in self.avail_vars:
                 k1_p = k1+'_'+self.det_id
                 self.data_dict[k1_p] = {}
-                for k2 in self.sig_names:     
-                    self.data_dict[k1_p][k2] = np.array([])    
+                for k2 in self.sig_names: 
+                    if self.requested[k1][k2]:
+                        if 'len' in k1_p:
+                            self.data_dict[k1_p][k2] = np.array([0])
+                        else:
+                            self.data_dict[k1_p][k2] = np.array([])    
             
 
     def find_peaks_fex(self, det, evt):
         self.tpks_dict = {}
         self.len_tpks_dict = {}
         for k in self.data_dict.keys(): self.data_dict[k] = {}
-    
+        self.num_None = 0
+        
         for k1 in self.params['keys'].keys():
             peaks = det[k1].raw.peaks(evt)  
             wfs = det[k1].raw.waveforms(evt) 
             padded = det[k1].raw.padded(evt) 
+            if peaks is None:
+                #print(k1+' FEX is empty!!!')
+                self.num_None += 1
+                continue
             for i, k2 in enumerate(peaks.keys()):
                 key_pks = self.mapping[k1+str(k2)]
                 starts = np.array(peaks[k2][0][0]).astype('float')
@@ -82,7 +96,7 @@ class hsd_peak_finder():
 
                 
                 self.tpks_dict[key_pks] = tpks_all
-                self.len_tpks_dict[key_pks] = len(tpks_all)
+                self.len_tpks_dict[key_pks] = np.array([len(tpks_all)])
               
                 if self.requested['pdd'][key_pks]:
           
@@ -117,7 +131,7 @@ class hsd_peak_finder():
             
                 
                 self.tpks_dict[key_pks] = tpks_all
-                self.len_tpks_dict[key_pks] = len(tpks_all)   
+                self.len_tpks_dict[key_pks] = np.array([len(tpks_all)])   
                 
                 if self.requested['tpks'][key_pks]:
                     self.data_dict['tpks_'+self.det_id].update({key_pks: self.tpks_dict[key_pks]})

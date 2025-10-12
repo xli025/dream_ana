@@ -4,7 +4,7 @@ from scipy.signal import find_peaks
 from dream.util.setup import read_config
 
 class hsd_peak_finder():
-    def __init__(self, det_id, sig_names, mapping, params=None, requested_vars=None): 
+    def __init__(self, det_id, sig_names, mapping, params=None, requested_vars=None, **kwargs): 
 
         self.det_id = det_id
         self.mapping = mapping
@@ -61,7 +61,7 @@ class hsd_peak_finder():
                 
         return self.data_dict            
 
-    def find_peaks_fex(self, det, evt):
+    def find_peaks_fex(self, det, evt, *args, **kwargs):
         self.tpks_dict = {}
         self.n_tpks_dict = {}
         for k in self.data_dict.keys(): self.data_dict[k] = {}
@@ -92,7 +92,7 @@ class hsd_peak_finder():
                     self.data_dict['n_tpks_'+self.det_id].update({key_pks: self.n_tpks_dict[key_pks]})
 
         
-    def find_peaks_raw(self, det, evt):
+    def find_peaks_raw(self, det, evt, *args, **kwargs):
         self.tpks_dict = {}
         self.n_tpks_dict = {}    
         for k in self.data_dict.keys(): self.data_dict[k] = {}

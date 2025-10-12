@@ -14,8 +14,8 @@ l:
       polarity: "Negative"
       threshold: 500
       walk: 0
-      timerange_low: 0
-      timerange_high: 10000.0
+      timerange_low: 2000
+      timerange_high: 15000.0
       offset: 16384
     dld:
       sample_interval: 0.16826923
@@ -24,21 +24,21 @@ l:
       polarity: "Negative"
       threshold: 500
       walk: 0
-      timerange_low: 0
-      timerange_high: 10000.0
+      timerange_low: 2000
+      timerange_high: 15000.0
       offset: 20000
   hr:
     runtime_u: 200
     runtime_v: 200
     runtime_w: 200
-    u_diff_offset: 1
-    v_diff_offset: -1270
-    w_diff_offset: 5.5
-    tsum_avg_u: 43.7
+    u_diff_offset: 0.5
+    v_diff_offset: -4.5
+    w_diff_offset: 4.5
+    tsum_avg_u: 43.9
     tsum_hw_u: 5
-    tsum_avg_v: 1286.5
+    tsum_avg_v: 2.5
     tsum_hw_v: 5
-    tsum_avg_w: 2532.2
+    tsum_avg_w: 33
     tsum_hw_w: 5
     f_u: 0.784
     f_v: 0.789

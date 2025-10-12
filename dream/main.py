@@ -31,7 +31,6 @@ config_det = read_config(config_dir+instrument+'/det.yaml')
 detectors, config, requested_vars_by_detector = check_detectors(config, config_det)
 
 if rank==0: 
-    print('num_workers:', numworkers)
     print(requested_vars_by_detector)
     
     
@@ -39,7 +38,7 @@ algs = {}
 for det in detectors:
     mod = importlib.import_module(config_det[det]['module'])
     alg = getattr(mod, config_det[det]['alg'])
-    algs[det] = alg(**config_det[det]['kwargs'], requested_vars = requested_vars_by_detector[det]) if 'kwargs' in config_det[det].keys() else alg(requested_vars = requested_vars_by_detector[det])
+    algs[det] = alg(**config_det[det]['kwargs'], requested_vars = requested_vars_by_detector[det], rank = rank) if 'kwargs' in config_det[det].keys() else alg(requested_vars = requested_vars_by_detector[det])
 
 
 if mode=='online':
@@ -82,21 +81,28 @@ while 1:
                     
 
         for det in detectors_rm: detectors.remove(det)
+            
+        priority = {'timing': 0, 'bld': 1}      
+        detectors.sort(key=lambda x: priority.get(x, 2))
+        
         n_evt = 0
         for step_i, step in enumerate(run.steps()):
             for nevt,evt in enumerate(step.events()):
                 
-                if True:#try:
-                    evt_dict = {}                
+                try:
+                    evt_dict = {}     
+                    deep_merge(evt_dict, {'x':{'time_stamp': evt.timestamp}})
                     for det in detectors:
-                        deep_merge(evt_dict, algs[det](dets[det], evt))
-                    if mode=='offline': deep_merge(evt_dict, {'x':{'time_stamp': evt.timestamp}})
+                        deep_merge(evt_dict, algs[det](dets[det], evt, evt_dict['x']))
+                            
                     comm.send(rank, smd, n_evt, evt, evt_dict)
                     n_evt += 1
-               # except Exception as err:
-               #     print(err)
+                
+                except Exception as err:
+                   print(err)
             
         if mode == 'online': 
+            #pass
             smd.event(evt,{'endrun':1}) # tells gatherer to reset plots
         else:
             smd.done() 

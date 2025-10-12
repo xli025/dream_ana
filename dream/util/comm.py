@@ -23,7 +23,7 @@ PLOT_CLASS_MAP = {
     'singleline_func': SingleLineFuncWorkerPlot,
     'singleimage': SingleImageWorkerPlot,
     'hist1d_func': Hist1DFuncWorkerPlot,
-    'rollavgfunc': RollAvgFuncWorkerPlot,
+    'rollavg_func': RollAvgFuncWorkerPlot,
     'scan_var_func': ScanVarFuncWorkerPlot,
     'scan2_var_func': Scan2VarFuncWorkerPlot,
     'scan_hist1d_func': ScanHist1DFuncWorkerPlot,
@@ -126,6 +126,7 @@ class comm_offline:
                 data_dict['ragged']['var_'+k] = {}                
                 for var in self.config['data']['ragged'][k]['var']:
                     data_dict['ragged']['var_'+k][var] = evt_dict[k][var]
+
 
                 if 'x' in evt_dict.keys():
                     for xk in evt_dict['x'].keys():

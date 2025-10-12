@@ -6,15 +6,22 @@ from dream.alg.common.peak_finders import hsd_peak_finder
 #from dream.alg.common.peak_finders_scipy import hsd_peak_finder
 from dream.lib.libASort import PyASort
 from dream.util.misc import lists_intersection
+from itertools import combinations
 
 class dld_reconstructor:
-    def __init__(self, det_id, requested_vars):
+    def __init__(self, det_id, requested_vars, rank, **kwargs):
 
         self.det_id = det_id
         self.sign_z = 1. if self.det_id == 's' else -1.
         config_dir = os.getenv("CONFIGDIR")
         config_dir = config_dir + 'dream/'
         self.params = read_config(config_dir + 'alg.yaml')[self.det_id]
+
+        if rank==0:
+            print('DET ID: ', self.det_id)
+            print('ALG: ', 'dld')
+            print('CONFIG:')
+            print(self.params)  
 
         self.sig_names = ['mcp', 'u1', 'u2', 'v1', 'v2', 'w1', 'w2']
         hsd_dict = self.params['det']['keys']
@@ -31,7 +38,8 @@ class dld_reconstructor:
         setting_names = ['pos_offset_x', 'pos_offset_y', 'tsum_hw_u', 'tsum_hw_v', 'tsum_hw_w', 'f_u', 'f_v', 'f_w', 'w_offset', 'runtime_u', 'runtime_v', 'runtime_w', 'rMCP', 'dtime_dld', 'dtime_mcp', 'mth_max']
         settings = [self.params['hr'][setting_name] for setting_name in setting_names]
         self.RHF = PyASort()
-        _ = self.RHF.init_sorter(config_dir, 0, 1, 0, 0, *settings)
+        s_corr, p_corr = 1, 1
+        _ = self.RHF.init_sorter(config_dir, 0, 1, s_corr, p_corr, *settings)
     
 
         self.sig_offset_dict = {}
@@ -96,7 +104,7 @@ class dld_reconstructor:
         self.reconstruct(*args, **kwargs)
         return self.data_dict
         
-    def reconstruct(self, det, evt):
+    def reconstruct(self, det, evt, *args, **kwargs):
 
         self.peak_finder(det, evt)
         if self.requested_peak_finder_data: self.data_dict.update(self.peak_finder.data_dict)
@@ -119,7 +127,7 @@ class dld_reconstructor:
                                            self.peak_finder.len_tpks_dict[sig_name])                                    
                 
 
-                if len_peaks > 1000000:
+                if len_peaks > 170859375: #10000000:
                     self.data_dict[self.k0] = {}
                     if self.requested['n']: self.data_dict[self.k0]['n'] = np.array([0])
                     for var in ['z', 'y', 't', 'm']:
@@ -144,6 +152,7 @@ class dld_reconstructor:
                 self.RHF.fill_hits()
                 self.data_dict[self.k0] = {}
                 hits_n = self.RHF.get_hits_n()
+                
                 if self.requested['n']: self.data_dict[self.k0]['n'] = np.array([hits_n])
                 if self.requested['z']: self.data_dict[self.k0]['z'] = self.sign_z*self.RHF.get_hits_y()
                 if self.requested['y']: self.data_dict[self.k0]['y'] = self.RHF.get_hits_x()
@@ -153,11 +162,16 @@ class dld_reconstructor:
                 if self.pipico:
                     self.data_dict[self.k_pp] = {}
                     if hits_n>1:
-                        partitioned = np.partition(self.RHF.get_hits_t(), 1)
-                        pps = np.sort(partitioned[:2])
-                        self.data_dict[self.k_pp]['pp1'] = np.array([pps[0]])
-                        self.data_dict[self.k_pp]['pp2'] = np.array([pps[1]])
-
+                        # partitioned = np.partition(self.RHF.get_hits_t(), 1)
+                        # pps = np.sort(partitioned[:2])
+                        # self.data_dict[self.k_pp]['pp1'] = np.array([pps[0]])
+                        # self.data_dict[self.k_pp]['pp2'] = np.array([pps[1]]) 
+                        
+                        pairs = np.array(list(combinations(self.RHF.get_hits_t(), 2)))
+                        self.data_dict[self.k_pp]['pp1'] = pairs[:,0]
+                        self.data_dict[self.k_pp]['pp2'] = pairs[:,1]    
+    
+                
                     else:
                         for var in ['pp1', 'pp2']:
                             self.data_dict[self.k_pp][var] = np.array([])  

@@ -2,6 +2,7 @@ import os
 import numpy as np
 from dream.util.setup import read_config
 from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks
 
 class scan:
     def __init__(self, requested_vars):
@@ -39,7 +40,7 @@ class scan:
              
         return self.data_dict
 
-    def get_vars(self, det, evt):
+    def get_vars(self, det, evt, *args, **kwargs):
         self.data_dict['x'] = {}
         for i, requested_var in enumerate(self.requested_vars[self.det_id]): 
             self.data_dict['x'][self.det_id+':'+requested_var] = det[self.params['det']['keys'][i]](evt) if det[self.params['det']['keys'][i]] is not None else np.nan   
@@ -74,7 +75,7 @@ class bld:
                
         return self.data_dict
 
-    def get_vars(self, det, evt):
+    def get_vars(self, det, evt, *args, **kwargs):
         self.data_dict['x'] = {}
         for i, requested_var in enumerate(self.requested_vars[self.det_id]): 
             self.data_dict['x'][self.det_id+':'+requested_var] = det[self.params['det']['keys'][i]].raw.milliJoulesPerPulse(evt) if det[self.params['det']['keys'][i]] is not None else np.nan   
@@ -114,7 +115,7 @@ class epics:
                 
         return self.data_dict
 
-    def get_vars(self, det, evt):
+    def get_vars(self, det, evt, *args, **kwargs):
         self.data_dict['x'] = {}
         for i, requested_var in enumerate(self.requested_vars[self.det_id]): 
             self.data_dict['x'][self.det_id+':'+requested_var] = det[self.params['det']['keys'][i]](evt) if det[self.params['det']['keys'][i]] is not None else np.nan   
@@ -150,7 +151,7 @@ class timing:
                 
         return self.data_dict
 
-    def get_vars(self, det, evt):
+    def get_vars(self, det, evt, *args, **kwargs):
         self.data_dict['x'] = {}
         det_timing = next(iter(det.values()))
         for i, requested_var in enumerate(self.requested_vars[self.det_id]): 
@@ -170,8 +171,13 @@ class atm:
         config_dir = config_dir + instrument + '/'
         params = read_config(config_dir + 'alg.yaml')[self.det_id]
         self.params = params
+        self.beta = self.params['beta']
         
-        #self.requested_vars = requested_vars
+        self.requested_vars = requested_vars
+
+        if 'edge' in self.requested_vars[self.det_id]:
+            self.x_atm = np.arange(2048)
+            self.bkg = None
         self.data_dict = {}
        
       
@@ -181,16 +187,58 @@ class atm:
             self.get_vars(*args, **kwargs)
         except Exception as err:
             print('atm error:',err)
-            self.data_dict['atm'] = {'line':[]}
-            self.data_dict['atm'] = {'gline':[]}
+            if 'line' in self.requested_vars[self.det_id]: self.data_dict['atm'] = {'line':[]}
+            if 'gline' in self.requested_vars[self.det_id]: self.data_dict['atm'] = {'gline':[]}
+            if 'edge' in self.requested_vars[self.det_id]: self.data_dict['x'][self.det_id+':'+'edge'] = np.nan
                 
         return self.data_dict
 
-    def get_vars(self, det, evt):
-        self.data_dict['atm'] = {}
+    def get_vars(self, det, evt, x, *args, **kwargs):
+        
         line = next(iter(det.values())).raw.raw(evt)
-        self.data_dict['atm']['line'] = line
-        self.data_dict['atm']['gline'] = gaussian_filter1d(line,self.params['gfw'])
+        line_req = 'line' in self.requested_vars[self.det_id]
+        gline_req = 'gline' in self.requested_vars[self.det_id]
+        if line_req or gline_req: self.data_dict['atm'] = {}
+        if line_req: self.data_dict['atm']['line'] = line
+        if gline_req: self.data_dict['atm']['gline'] = gaussian_filter1d(line,self.params['gfw'])
+
+        if 'edge' in self.requested_vars[self.det_id]:
+            edge = np.nan
+            self.data_dict['x'] = {}
+            if x['timing:281'] == 1:
+                if self.bkg is None:
+                    self.bkg = line
+                else:
+                    self.bkg = self.bkg*(1.-self.beta) + line*self.beta     
+         
+            if x['timing:280'] == 1:
+                if self.bkg is None: 
+                    edge = np.nan
+                else:
+                    edge = self.find_edges(line, self.bkg)
+            self.data_dict['x'][self.det_id+':'+'edge'] = edge
+          
+        
+
+    def find_edges(self, atm, bkg, hw=300):
+        sig = atm/bkg
+        x_avg = np.average(self.x_atm, weights = atm)
+        inds = (self.x_atm>x_avg-hw)&(self.x_atm<x_avg+hw)
+        xx, yy = self.x_atm[inds],sig[inds]
+        offset = xx[0]
+        edge,_,_ = self.edge_finder(yy)   
+        return edge+offset                    
+
+    def edge_finder(self, prj, hl_kernel = 150, w_kernel = 30):
+        x = np.arange(-hl_kernel,hl_kernel+1)
+        kernel = np.exp(-0.5*((x/w_kernel)**2))
+        kernel = kernel[1:] - kernel[:-1]
+        prj = np.concatenate([prj[hl_kernel:0:-1], prj, prj[-1:-hl_kernel:-1]])   
+        conv = np.convolve(prj,kernel,'valid')
+        pks, props = find_peaks(conv, prominence=(conv.max()-conv.mean())/2)
+        pk = np.nan if len(pks)==0 else pks[np.argmax(props['prominences'])]
+        return pk, conv, kernel
+            
 
        
 
@@ -220,7 +268,7 @@ class fzp:
                 
         return self.data_dict
 
-    def get_vars(self, det, evt):
+    def get_vars(self, det, evt, *args, **kwargs):
         self.data_dict['x'] = {}
         prj = next(iter(det.values())).raw.raw(evt)
         xmax,m1,m2,area = self.PhotonSpectrumMoments(prj,self.hw_fzp)

@@ -28,7 +28,7 @@ dream_short_detector:
 atm:
   module: dream.alg.common.x
   alg: atm
-  return: {atm: [line, gline]}
+  return: {atm: [line, gline, edge]}
 
 scan:
   module: dream.alg.common.x
@@ -48,4 +48,4 @@ bld:
 epics:
   module: dream.alg.common.x
   alg: epics
-  return: {epics:[abc]}   
+  return: {epics:[las_ip2_atm_dly]}   

@@ -58,6 +58,7 @@ class ScanVarWorkerPlot(BaseWorkerPlot):
         if self.var in data_acc and self.scan in data_acc:
             arr = np.atleast_1d(data_acc[self.var])
             arr_scan = np.atleast_1d(data_acc[self.scan])
+            if np.isnan(arr_scan).any(): return
             arr_norm = None if self.norm is None else np.atleast_1d(data_acc[self.norm])
             keys, sums, counts = worker_sparse_mean_sort(arr, arr_scan, self.decimals, arr_norm)
             out_dict[self.name] = (keys, sums, counts)
@@ -78,6 +79,8 @@ class Scan2VarWorkerPlot(BaseWorkerPlot):
             arr = np.atleast_1d(data_acc[self.var])
             s1 = np.atleast_1d(data_acc[self.scan1])
             s2 = np.atleast_1d(data_acc[self.scan2])
+            if np.isnan(s1).any() or np.isnan(s2).any():
+                return
             arr_norm = None if self.norm is None else np.atleast_1d(data_acc[self.norm])
             k1, k2, sums_mat, counts_mat = worker_sparse_mean_sort2d(arr, s1, s2, self.dec1, self.dec2, arr_norm)
             out_dict[self.name] = (k1, k2, sums_mat, counts_mat)
@@ -99,6 +102,7 @@ class ScanHist1DWorkerPlot(BaseWorkerPlot):
         if self.var in data_acc and self.scan in data_acc:
             arr = np.atleast_1d(data_acc[self.var])
             arr_scan = np.atleast_1d(data_acc[self.scan])
+            if np.isnan(arr_scan).any(): return
             arr_norm = None if self.norm is None else np.atleast_1d(data_acc[self.norm])
             H_sp, keys, num_arr = worker_sparse_sort1d_fast(arr, arr_scan, self.edges, self.decimals, arr_norm)
             out_dict[self.name] = (H_sp, keys, num_arr)
@@ -210,11 +214,11 @@ class SigBkg1DWorker(BaseWorkerPlot):
         elif plot_type == 'hist1d_func':
             # histogram transform for signal and background
             arange = p['arange_var']
-            nsig = {'func': fsig, 'arange': arange}
+            nsig = {'func': fsig, 'arange_var': arange}
             if 'func_norm_sig' in p:
                 nsig['func_norm'] = p['func_norm_sig']
                 nsig['norm_type'] = p.get('norm_type')
-            nbkg = {'func': fbkg, 'arange': arange}
+            nbkg = {'func': fbkg, 'arange_var': arange}
             if 'func_norm_bkg' in p:
                 nbkg['func_norm'] = p['func_norm_bkg']
                 nbkg['norm_type'] = p.get('norm_type')
@@ -274,8 +278,10 @@ class Hist1DFuncWorkerPlot(BaseWorkerPlot):
         self.func = mk_func(fd.get('name'))
         self.func_args1 = fd.get('args1', [])
         self.func_args2 = fd.get('args2', [])
-        ar = p.get('arange', p.get('arange_var'))
-        self.edges = np.arange(*ar)
+   
+        start, stop, step = next(iter(p['arange_var'].values()))  
+        self.edges = np.arange(start, stop, step)
+        
         self.norm_type = p.get('norm_type')
         if self.norm_type:
             fn = p.get('func_norm')
@@ -343,7 +349,12 @@ class ScanVarFuncWorkerPlot(BaseWorkerPlot):
         arr = np.atleast_1d(self.func_var(*args_v, *self.func_args2_var))
         args_s = [np.atleast_1d(data_acc[k]) for k in self.func_args1_scan if k in data_acc]
         if len(args_s) != len(self.func_args1_scan): return
-        arr_scan = np.atleast_1d(self.func_scan(*args_s, *self.func_args2_scan))
+        arr_scan_repeat =  self.func_scan(*args_s, *self.func_args2_scan)
+     
+        if np.isnan(arr_scan_repeat).any(): return
+  
+        arr_scan = np.atleast_1d(arr_scan_repeat)
+        
         arr_norm = None
         if self.func_norm:
             args_n = [np.atleast_1d(data_acc[k]) for k in self.func_args1_norm if k in data_acc]
@@ -398,6 +409,7 @@ class Scan2VarFuncWorkerPlot(BaseWorkerPlot):
                 return
             args1.append(np.atleast_1d(data_acc[k]))
         s1 = np.atleast_1d(self.func_s1(*args1, *self.func_args2_s1))
+        if np.isnan(s1).any(): return
         # Compute second scan axis
         args2 = []
         for k in self.func_args1_s2:
@@ -405,6 +417,7 @@ class Scan2VarFuncWorkerPlot(BaseWorkerPlot):
                 return
             args2.append(np.atleast_1d(data_acc[k]))
         s2 = np.atleast_1d(self.func_s2(*args2, *self.func_args2_s2))
+        if np.isnan(s2).any(): return
         # Compute normalization array if provided
         arr_norm = None
         if self.func_norm:
@@ -463,6 +476,7 @@ class ScanHist1DFuncWorkerPlot(BaseWorkerPlot):
                 return
             args_s.append(np.atleast_1d(data_acc[k]))
         arr_scan = np.atleast_1d(self.func_scan(*args_s, *self.func_args2_scan))
+        if np.isnan(arr_scan).any(): return
         # gather norm var if any
         arr_norm = None
         if self.func_norm:

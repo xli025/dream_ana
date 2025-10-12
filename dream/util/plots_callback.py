@@ -57,7 +57,10 @@ class Hist1DPlot(BasePlot):
     def __init__(self, name, p):
         super().__init__(name)
         # config: p['arange'] is { var_key: [start, stop, step] }
-        start, stop, step = next(iter(p['arange'].values()))
+        if 'arange' in p:
+            start, stop, step = next(iter(p['arange'].values()))
+        else:
+            start, stop, step = next(iter(p['arange_var'].values()))            
         edges = np.arange(start, stop, step)
         self.centers = 0.5 * (edges[:-1] + edges[1:])
         self.dense   = np.zeros_like(self.centers, dtype=int)
@@ -85,7 +88,10 @@ class Hist2DPlot(BasePlot):
     def __init__(self, name, p):
         super().__init__(name)
         # config: p['arange'] has two entries, one per axis
-        (x0, x1, dx), (y0, y1, dy) = p['arange'].values()
+        if 'arange' in p:
+            (x0, x1, dx), (y0, y1, dy) = p['arange'].values()
+        else:
+            (x0, x1, dx), (y0, y1, dy) = p['arange_var'].values()
         xe = np.arange(x0, x1, dx)
         ye = np.arange(y0, y1, dy)
         self.dense = np.zeros((xe.size - 1, ye.size - 1), dtype=int)
@@ -131,6 +137,7 @@ class RollAvgPlot(BasePlot):
             return
         avg = np.mean(self.window)
         self.history.append(avg)
+
         plot = XYPlot(
             num_events,
             self.name,
@@ -497,7 +504,11 @@ class Hist1DFuncPlot(BasePlot):
         if 'centers' in p:
             self.centers = np.asarray(p['centers'])
         else:
-            start, stop, step = p.get('arange_var', p.get('arange')) 
+
+            if 'arange' in p:
+                start, stop, step = next(iter(p['arange'].values()))
+            else:
+                start, stop, step = next(iter(p['arange_var'].values())) 
             edges = np.arange(start, stop, step)
             self.centers = 0.5 * (edges[:-1] + edges[1:])
         self.dense    = np.zeros_like(self.centers, dtype=float)

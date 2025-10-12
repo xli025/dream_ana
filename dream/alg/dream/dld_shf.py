@@ -7,13 +7,19 @@ from dream.util.misc import lists_intersection
 from .HitFinder import HitFinder
 
 class dld_reconstructor:
-    def __init__(self, det_id, requested_vars):
+    def __init__(self, det_id, requested_vars, rank, **kwargs):
 
         self.det_id = det_id
         self.sign_z = 1. if self.det_id == 's' else -1.
         config_dir = os.getenv("CONFIGDIR")
         config_dir = config_dir + 'dream/'
         self.params = read_config(config_dir + 'alg.yaml')[self.det_id]
+
+        if rank==0:
+            print('DET ID: ', self.det_id)
+            print('ALG: ', 'dld_shf')
+            print('CONFIG:')
+            print(self.params)   
 
         self.sig_names = ['mcp', 'u1', 'u2', 'v1', 'v2', 'w1', 'w2']
         hsd_dict = self.params['det']['keys']
@@ -85,7 +91,7 @@ class dld_reconstructor:
         self.reconstruct(*args, **kwargs)
         return self.data_dict
         
-    def reconstruct(self, det, evt):
+    def reconstruct(self, det, evt, *args, **kwargs):
  
         self.peak_finder(det, evt)
         if self.requested_peak_finder_data: self.data_dict.update(self.peak_finder.data_dict)

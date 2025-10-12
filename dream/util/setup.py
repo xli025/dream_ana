@@ -212,10 +212,11 @@ def init(rank, mode, exp, run_num, config, callbacks):
     if mode == 'offline':
         h5_dir = config['h5']['path1'] + exp + config['h5']['path2']
         h5_path = h5_dir + config['h5']['name1'] + str(run_num) + config['h5']['name2']
-        os.makedirs(h5_dir, exist_ok=True)
+        permissions_mode = 0o775
+        os.makedirs(h5_dir, mode=permissions_mode, exist_ok=True)
 
         log_dir = config['log']['path1'] + exp + config['log']['path2']
-        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(log_dir, mode=permissions_mode, exist_ok=True)
 
         pattern = h5_path[:-3]+'_*.h5'
         files_to_delete = glob.glob(pattern)+glob.glob(h5_path)    
@@ -231,16 +232,16 @@ def init(rank, mode, exp, run_num, config, callbacks):
 
         
         if config['max_events'] is not None:
-            ds = DataSource(exp=exp,run=run_num, live = config['live'], max_events=config['max_events'], monitor=True) 
+            ds = DataSource(exp=exp,run=run_num, live = config['live'], max_events=config['max_events'], monitor=False) 
         else:
-            ds = DataSource(exp=exp,run=run_num, live = config['live'], monitor=True)             
+            ds = DataSource(exp=exp,run=run_num, live = config['live'], monitor=False)             
         
         smd = ds.smalldata(filename=h5_path, batch_size=config['batch_size'])
 
     elif mode == 'online':
         # ds = DataSource(shmem='tmo_meb1')
         ###
-        ds = DataSource(exp='tmo101333524',run=768)             
+        ds = DataSource(exp='tmo101347825',run=72)             
         #####
         smd = ds.smalldata(batch_size=1, callbacks=callbacks)        
     return ds, smd
