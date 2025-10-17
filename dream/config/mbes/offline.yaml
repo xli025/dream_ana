@@ -2,12 +2,12 @@ max_events:
 batch_size: 1000
 h5:
   path1: /sdf/data/lcls/ds/tmo/
-  path2: /scratch/xiangli/h5/
+  path2: /scratch/<arp folder>/h5/
   name1: run
   name2: .h5
 log:
   path1: /sdf/data/lcls/ds/tmo/
-  path2: /scratch/xiangli/log/
+  path2: /scratch/<arp folder>/log/
   
 data:
   uniform:
