@@ -1,27 +1,25 @@
-import os, sys, glob, argparse
-import yaml, copy
-from types import SimpleNamespace
+from typing import Any
+import copy
 from psana import DataSource
 
-from typing import Tuple, List, Dict, Any
-
-import numpy as np
-from collections import deque
+DetectorReturnMap = dict[str, list[str]]          # prefix -> trailing names
+DetectorMap = dict[str, DetectorReturnMap]        # detector -> return map
 
 def check_detectors(
-    yaml_a: Dict[str, Any],
-    yaml_b: Dict[str, Any],
-) -> Tuple[List[str], Dict[str, Any], Dict[str, Dict[str, List[str]]]]:
+    yaml_a: dict[str, Any],
+    yaml_b: dict[str, Any],
+) -> tuple[list[str], dict[str, Any], DetectorMap]:
+    
     # 1) build detector → { prefix: [trailing…] }
-    det_maps: Dict[str, Dict[str, List[str]]] = {
-        det: (conf.get('return') if isinstance(conf.get('return'), dict) else {})
+    det_maps: DetectorMap = {
+        det: (conf.get("return") if isinstance(conf.get("return"), dict) else {})
         for det, conf in yaml_b.items()
     }
 
-    def split_var(v: str) -> Tuple[str, str]:
+    def split_var(v: str) -> tuple[str, str]:
         return tuple(v.split(':', 1)) if ':' in v else (v, v)
 
-    def as_list(field):
+    def as_list(field: Any) -> list[str]:
         if isinstance(field, list):
             return field
         if isinstance(field, str):
@@ -30,11 +28,11 @@ def check_detectors(
 
     # 2) deep‐copy A for pruning
     updated = copy.deepcopy(yaml_a)
-    missing: List[str] = []
+    missing: list[str] = []
 
     # 3) drop plots exactly as before
     for pname, pconf in list(updated.get('plots', {}).items()):
-        to_check: List[str] = []
+        to_check: list[str] = []
         to_check += as_list(pconf.get('var'))
         to_check += list(pconf.get('arange', {}).keys())
         to_check += as_list(pconf.get('scan'))
@@ -104,9 +102,9 @@ def check_detectors(
         print("The following vars are missing:", ", ".join(sorted(set(missing))))
 
     # 5) build requested_vars_by_detector, now including data/x lists
-    requested: Dict[str, Dict[str, List[str]]] = {}
+    requested: DetectorMap = {}
     for det, ret_map in det_maps.items():
-        pref_to_trs: Dict[str, List[str]] = {}
+        pref_to_trs: DetectorReturnMap = {}
 
         # from plots (unchanged)
         for pconf in updated.get('plots', {}).values():
@@ -167,57 +165,17 @@ def check_detectors(
     needed = list(requested.keys())
     return needed, updated, requested
 
-def parse_boolean(value):
-    value = value.lower()
-
-    if value in ["True","true", "yes", "y", "1", "t"]:
-        return True
-    elif value in ["False","false", "no", "n", "0", "f"]:
-        return False
-
-    return False
-
-
-def read_args():
-
-    parser = argparse.ArgumentParser(description='preproc')
-    parser.add_argument(
-        '--exp',
-        metavar='NAME',
-        type=str,
-        default=None,
-        help='(optional) name of the experiment'
-    )
-    parser.add_argument(
-        '--run',
-        metavar='N',
-        type=int,
-        default=None,
-        help='(optional) run number; if provided, we switch to offline mode'
-    )
-
-    args = parser.parse_args()
-
-    exp     = args.exp
-    run_num = args.run
-
-    #print(f"exp: {exp!r}, runnum: {run_num!r}")
-
-    mode = 'online' if run_num is None else 'offline'
-
-    return mode, exp, run_num
 
 def init(rank, mode, exp, run_num, config, callbacks):
-
     if mode == 'offline':
+        import os, glob
         h5_dir = config['h5']['path1'] + exp + config['h5']['path2']
-        h5_path = h5_dir + config['h5']['name1'] + str(run_num) + config['h5']['name2']
+        h5_path = h5_dir + config['h5']['name1'] + str(run_num) + config['h5']['name2']        
         permissions_mode = 0o775
-        os.makedirs(h5_dir, mode=permissions_mode, exist_ok=True)
-
-        log_dir = config['log']['path1'] + exp + config['log']['path2']
-        os.makedirs(log_dir, mode=permissions_mode, exist_ok=True)
-
+        os.makedirs(h5_dir, mode=permissions_mode, exist_ok=True)                
+        log_dir = config['log']['path1'] + exp + config['log']['path2']   
+        os.makedirs(log_dir, mode=permissions_mode, exist_ok=True)   
+        
         pattern = h5_path[:-3]+'_*.h5'
         files_to_delete = glob.glob(pattern)+glob.glob(h5_path)    
         if rank==0:
@@ -241,29 +199,9 @@ def init(rank, mode, exp, run_num, config, callbacks):
     elif mode == 'online':
         # ds = DataSource(shmem='tmo_meb1')
         ###
-        ds = DataSource(exp='tmo101347825',run=72)             
+        ds = DataSource(exp='tmo101247125',run=91)             
         #####
         smd = ds.smalldata(batch_size=1, callbacks=callbacks)        
     return ds, smd
-  
 
 
-
-def nsify(d):
-    if isinstance(d, dict):
-        return SimpleNamespace(**{k: nsify(v) for k, v in d.items()})
-    elif isinstance(d, list):
-        return [nsify(x) for x in d]
-    else:
-        return d
-
-def read_config(fn,namespace=False):
-    with open(fn, "r") as f:
-        params = yaml.safe_load(f)
-    if namespace: params = nsify(params)    
-    return params
-
-
-def dict_to_yaml_file(data: dict, filepath: str, *, sort_keys: bool = False) -> None:
-    with open(filepath, 'w') as f:
-        yaml.safe_dump(data, f, sort_keys=sort_keys, default_flow_style=False)

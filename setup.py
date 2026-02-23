@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
   
 setup(
     name="dream",
-    version="1.0.0",
+    version="1.0.1",
     packages=find_packages(),            # finds dream, dream.alg, dream.util, dream.lib, etc
     include_package_data=True,           # include package_data in wheels
     package_data={

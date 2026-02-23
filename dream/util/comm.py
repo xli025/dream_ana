@@ -67,6 +67,7 @@ class comm_online:
                 continue
             elif k1 == 'x':
                 for k2 in evt_dict[k1].keys():
+                    if k2 == 'timestamp': continue 
                     self.data_dict_acc[k2] = np.append(self.data_dict_acc[k2], evt_dict[k1][k2])                
             else:
                 for k2 in evt_dict[k1].keys():
@@ -104,21 +105,21 @@ class comm_offline:
         if 'uniform' in self.config['data'].keys():
             for k in self.config['data']['uniform'].keys():
                 if 'uniform' not in data_dict.keys(): data_dict['uniform'] = {}
-                data_dict['uniform'][k] = {}
-                max_len = self.config['data']['uniform'][k]['len']   
+                data_dict['uniform'][k] = {}                   
                 
                 if 'fvar' in self.config['data']['uniform'][k].keys():
-                    for var in self.config['data']['uniform'][k]['fvar']:
-                      
+                    for var in self.config['data']['uniform'][k]['fvar']:                      
                         data_dict['uniform'][k][var] = evt_dict[k][var]
-                
-                for var in self.config['data']['uniform'][k]['var']:
-                    temp = np.full((max_len,), np.nan)
-                    var_len = len(evt_dict[k][var])
-                    if var_len>0:
-                        temp_len = min(var_len, max_len) 
-                        temp[:temp_len] = evt_dict[k][var][:temp_len]                           
-                    data_dict['uniform'][k][var] = temp
+
+                if 'var' in self.config['data']['uniform'][k].keys():
+                    max_len = self.config['data']['uniform'][k]['len']
+                    for var in self.config['data']['uniform'][k]['var']:
+                        temp = np.full((max_len,), np.nan)
+                        var_len = len(evt_dict[k][var])
+                        if var_len>0:
+                            temp_len = min(var_len, max_len) 
+                            temp[:temp_len] = evt_dict[k][var][:temp_len]                           
+                        data_dict['uniform'][k][var] = temp
                 
         if 'ragged' in self.config['data'].keys():
             for k in self.config['data']['ragged'].keys():
@@ -128,28 +129,28 @@ class comm_offline:
                     data_dict['ragged']['var_'+k][var] = evt_dict[k][var]
 
 
-                if 'x' in evt_dict.keys():
+                if self.config['xpand'] and 'x' in evt_dict.keys():
                     for xk in evt_dict['x'].keys():
                         data_dict['ragged']['var_'+k][xk] = np.full(evt_dict[k][var].shape, evt_dict['x'][xk])
 
         
         if 'ragged_split' in self.config['data'].keys():
             for k in self.config['data']['ragged_split'].keys():
-                if 'ragged' not in data_dict.keys(): data_dict['ragged'] = {}
-                data_dict['ragged'][k] = {}
+                if 'ragged_split' not in data_dict.keys(): data_dict['ragged_split'] = {}
+                data_dict['ragged_split'][k] = {}
                 for var in self.config['data']['ragged_split'][k]['var']:
-                    data_dict['ragged'][k]['var_'+var] = {var: evt_dict[k][var]}
+                    data_dict['ragged_split'][k]['var_'+var] = {var: evt_dict[k][var]}
 
-                    if 'x' in evt_dict.keys():
-                        for xk in evt_dict['x'].keys():
-                            data_dict['ragged'][k]['var_'+var][xk] = np.full(evt_dict[k][var].shape, evt_dict['x'][xk], dtype=float)
+                    # if 'x' in evt_dict.keys():
+                    #     for xk in evt_dict['x'].keys():
+                    #         data_dict['ragged'][k]['var_'+var][xk] = np.full(evt_dict[k][var].shape, evt_dict['x'][xk], dtype=float)
               
         if 'x' in evt_dict.keys():
             data_dict['x'] = evt_dict['x']
 
         smd.event(evt, data_dict)
 
-        if nevt%2000==0: print('rank:', rank, 'nevt:',nevt)
+        #if nevt%2000==0: print('rank:', rank, 'nevt:',nevt)
 
 
 

@@ -1,17 +1,10 @@
 from psmon import publish
 from collections import deque
-import numpy as np
 from dream.util.plots_callback import (
     MultiLinePlot, Hist1DPlot, Hist2DPlot,
-    RollAvgPlot, ScanVarPlot, Scan2VarPlot, ScanHist1DPlot, SingleImagePlot
+    RollAvgPlot, ScanVarPlot, Scan2VarPlot, ScanHist1DPlot, SingleImagePlot,
+    SigBkg1DPlot, RollAvg1DPlot, SingleLinePlot, Hist1DFuncPlot
 )
-
-from dream.util.plots_callback import (
-SigBkg1DPlot, RollAvg1DPlot, SingleLinePlot, Hist1DFuncPlot
-)
-
-from collections import deque
-import numpy as np
 
 # Map config 'type' strings (including “func” variants) to their Plot classes.
 # Func‐variants generally reuse the same class as their non‐func counterparts,

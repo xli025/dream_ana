@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from scipy.signal import find_peaks
-from dream.util.setup import read_config
+from dream.util.misc import read_config
 
 class hsd_peak_finder():
     def __init__(self, det_id, sig_names, mapping, params=None, requested_vars=None, **kwargs): 

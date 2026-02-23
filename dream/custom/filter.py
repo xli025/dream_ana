@@ -1,4 +1,12 @@
 import numpy as np
+#
+def dest4_280(arr, dest, t280, num1, num2):
+    inds = (dest==num1)&(t280==num2)
+    arr[inds] = np.nan
+    return arr
+
+def filter_dest(arr, dest, num):
+    return arr[dest==num]
 
 def duck_goose_arr(arr, n_arr, ec, ec_01):
     ec_repeat = np.repeat(ec, n_arr.astype(int))
@@ -37,13 +45,11 @@ def a_gatedOn_bc(arr1, arr2, arr3, l2, r2, l3, r3):
     inds = (arr2>l2)&(arr2<r2)&(arr3>l3)&(arr3<r3)
     return arr1[inds]
 
+
 def n_gatedOn_abc(n_arr, arr1, arr2, arr3, l1, r1, l2, r2, l3, r3):
-
     inds = (arr1>l1)&(arr1<r1)&(arr2>l2)&(arr2<r2)&(arr3>l3)&(arr3<r3)
-
-    chunk_ids = np.repeat(np.arange(n_arr.size), n_arr.astype(int)  )       
+    chunk_ids = np.repeat(np.arange(n_arr.size), n_arr.astype(int))       
     n_arr = np.bincount(chunk_ids, weights=inds,
                         minlength=n_arr.size)
 
     return n_arr.astype(int)
-

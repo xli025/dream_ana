@@ -1,8 +1,6 @@
-import os
 import numpy as np
-from dream.util.setup import read_config
 from scipy.ndimage import gaussian_filter1d
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks    
 
 class scan:
     def __init__(self, requested_vars):
@@ -109,6 +107,7 @@ class epics:
         try:
             self.get_vars(*args, **kwargs)
         except Exception as err:
+            print('epics error:', err)
             self.data_dict['x'] = {}
             for requested_var in self.requested_vars[self.det_id]:
                 self.data_dict['x'][self.det_id+':'+requested_var] = np.nan           
@@ -117,8 +116,8 @@ class epics:
 
     def get_vars(self, det, evt, *args, **kwargs):
         self.data_dict['x'] = {}
-        for i, requested_var in enumerate(self.requested_vars[self.det_id]): 
-            self.data_dict['x'][self.det_id+':'+requested_var] = det[self.params['det']['keys'][i]](evt) if det[self.params['det']['keys'][i]] is not None else np.nan   
+        for i, requested_var in enumerate(self.requested_vars[self.det_id]):
+            self.data_dict['x'][self.det_id+':'+requested_var] = det[self.params['det']['keys'][i]](evt) if det[self.params['det']['keys'][i]] is not None and det[self.params['det']['keys'][i]](evt) is not None else np.nan   
 
 
 class timing:
@@ -163,6 +162,9 @@ class timing:
 
 class atm:
     def __init__(self, requested_vars):
+
+        import os
+        from dream.util.misc import read_config    
         
         self.det_id = 'atm'
 
@@ -190,6 +192,7 @@ class atm:
             if 'line' in self.requested_vars[self.det_id]: self.data_dict['atm'] = {'line':[]}
             if 'gline' in self.requested_vars[self.det_id]: self.data_dict['atm'] = {'gline':[]}
             if 'edge' in self.requested_vars[self.det_id]: self.data_dict['x'][self.det_id+':'+'edge'] = np.nan
+            if 'prom' in self.requested_vars[self.det_id]: self.data_dict['x'][self.det_id+':'+'edge'] = np.nan
                 
         return self.data_dict
 
@@ -199,25 +202,29 @@ class atm:
         line_req = 'line' in self.requested_vars[self.det_id]
         gline_req = 'gline' in self.requested_vars[self.det_id]
         if line_req or gline_req: self.data_dict['atm'] = {}
-        if line_req: self.data_dict['atm']['line'] = line
-        if gline_req: self.data_dict['atm']['gline'] = gaussian_filter1d(line,self.params['gfw'])
+        line_exists = line is not None
+        if line_req: self.data_dict['atm']['line'] = line if line_exists else []
+        if gline_req: self.data_dict['atm']['gline'] = gaussian_filter1d(line,self.params['gfw']) if line_exists else []
 
         if 'edge' in self.requested_vars[self.det_id]:
             edge = np.nan
+            prom = np.nan
             self.data_dict['x'] = {}
-            if x['timing:281'] == 1:
-                if self.bkg is None:
-                    self.bkg = line
-                else:
-                    self.bkg = self.bkg*(1.-self.beta) + line*self.beta     
-         
-            if x['timing:280'] == 1:
-                if self.bkg is None: 
-                    edge = np.nan
-                else:
-                    edge = self.find_edges(line, self.bkg)
+            if line_exists:
+                if x['timing:281'] == 1:
+                    if self.bkg is None:
+                        self.bkg = line
+                    else:
+                        self.bkg = self.bkg*(1.-self.beta) + line*self.beta     
+             
+                if x['timing:280'] == 1:
+                    if self.bkg is None: 
+                        edge = np.nan
+                        prom = np.nan
+                    else:
+                        edge, prom = self.find_edges(line, self.bkg)
             self.data_dict['x'][self.det_id+':'+'edge'] = edge
-          
+            if 'prom' in self.requested_vars[self.det_id]: self.data_dict['x'][self.det_id+':'+'prom'] = prom
         
 
     def find_edges(self, atm, bkg, hw=300):
@@ -226,18 +233,25 @@ class atm:
         inds = (self.x_atm>x_avg-hw)&(self.x_atm<x_avg+hw)
         xx, yy = self.x_atm[inds],sig[inds]
         offset = xx[0]
-        edge,_,_ = self.edge_finder(yy)   
-        return edge+offset                    
+        edge,prom = self.edge_finder(yy)   
+        return edge+offset, prom                    
 
-    def edge_finder(self, prj, hl_kernel = 150, w_kernel = 30):
+    def edge_finder(self, prj, hl_kernel = 200, w_kernel = 20):
         x = np.arange(-hl_kernel,hl_kernel+1)
-        kernel = np.exp(-0.5*((x/w_kernel)**2))
-        kernel = kernel[1:] - kernel[:-1]
+        # kernel = np.exp(-0.5*((x/w_kernel)**2))
+        # kernel = kernel[1:] - kernel[:-1]
+        kernel = -1*(x/w_kernel)*np.exp(-0.5*((x/w_kernel)**2)) #from Mat
         prj = np.concatenate([prj[hl_kernel:0:-1], prj, prj[-1:-hl_kernel:-1]])   
         conv = np.convolve(prj,kernel,'valid')
         pks, props = find_peaks(conv, prominence=(conv.max()-conv.mean())/2)
-        pk = np.nan if len(pks)==0 else pks[np.argmax(props['prominences'])]
-        return pk, conv, kernel
+        if len(pks)>0:
+            argmax = np.argmax(props['prominences']) 
+            pk = pks[argmax]        
+            prop = props['prominences'][argmax]
+        else:
+            pk = np.nan
+            prop = np.nan
+        return pk, prop
             
 
        
@@ -245,6 +259,7 @@ class atm:
 
 class fzp:
     def __init__(self, requested_vars):
+        from dream.util.misc import read_config
         self.det_id = 'fzp'
 
         config_dir = os.getenv("CONFIGDIR")

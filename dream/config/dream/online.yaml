@@ -1,0 +1,275 @@
+nacc: 5
+
+plots:   
+
+################################################################################### long detector
+  wf[l]:
+    type: multiline
+    y_offset: 100
+    var: ['wf_l:mcp', 'wf_l:u1', 'wf_l:u2', 'wf_l:v1', 'wf_l:v2', 'wf_l:w1', 'wf_l:w2']
+     
+
+  padded[l]:
+    type: multiline
+    y_offset: 1600
+    var: ['pdd_l:mcp', 'pdd_l:u1', 'pdd_l:u2', 'pdd_l:v1', 'pdd_l:v2', 'pdd_l:w1', 'pdd_l:w2']      
+     
+  n[l]:
+    type: hist1d
+    arange: {'hit_l:n': [0.5, 35.5, 1]}
+
+  n[l]_rollavg_mcp:
+    type: rollavg
+    var: 'len_tpks_l:mcp'
+    window: {'w1':500, 'w2':100}
+ 
+  n[l]_rollavg:
+    type: rollavg_func
+    func: {name: filter.filter_dest, args1: ['hit_l:n', 'timing:dest'], args2: [4]}
+    window: {'w1':500, 'w2':100}
+         
+#  n[l]_Ar2+_rollavg:
+#    type: rollavg_func
+#    func: {name: filter.gate1D_count, args1: ['hit_l:t'], args2: [5060, 5200]}
+#    window: {'w1':1000, 'w2':1000}   
+
+  t_mcp[l]:
+    type: hist1d
+    arange: {'tpks_l:mcp': [0, 15000, 1]}
+ 
+
+  t[l]:
+    type: hist1d
+    arange: {'hit_l:t': [0, 15000, 1]}
+    
+  z-y[l]:
+    type: hist2d
+    arange: {'hit_l:y': [-65, 65, 2], 'hit_l:z': [-65, 65, 2]}
+
+  pipico[l]:
+    type: hist2d
+    arange: {'ppc_l:pp1': [0, 12000, 30], 'ppc_l:pp2': [0, 12000, 30]}              
+    
+  y-t[l]:
+    type: hist2d
+    arange: {'hit_l:t': [0, 15000, 10], 'hit_l:y': [-65, 65, 2]}
+    
+  z-t[l]:
+    type: hist2d
+    arange: {'hit_l:t': [0, 15000, 10], 'hit_l:z': [-65, 65, 2]}
+
+################################################################################### diag
+######## long
+  usum[l]:
+    type: hist1d
+    arange: {'diag_l:tsum_u': [-100, 100, 1]}      
+  vsum[l]:
+    type: hist1d
+    arange: {'diag_l:tsum_v': [-100, 100, 1]}      
+  wsum[l]:
+    type: hist1d
+    arange: {'diag_l:tsum_w': [-100, 100, 1]}   
+
+######## short
+  # usum[s]:
+  #   type: hist1d
+  #   arange: {'diag_s:tsum_u': [-100, 100, 1]}      
+  # vsum[s]:
+  #   type: hist1d
+  #   arange: {'diag_s:tsum_v': [-100, 100, 1]}      
+  # wsum[s]:
+  #   type: hist1d
+  #   arange: {'diag_s:tsum_w': [-100, 100, 1]}   
+         
+
+###################################################################################  atm
+  atm_sig_bkg:
+    type: sigbkg1d
+    plot_type: singleline_func 
+    op_type: sub
+    window: 1000
+    func_sig: {name: filter.atm, args1: ['atm:line', 'bld:xgmd', 'timing:280'], args2: [0.005, 1]}
+    func_bkg: {name: filter.atm, args1: ['atm:line', 'bld:xgmd', 'timing:281'], args2: [0, 1]}      
+
+  atm_sig_bkg_g:
+    type: sigbkg1d
+    plot_type: singleline_func 
+    op_type: sub
+    window: 1000
+    func_sig: {name: filter.atm, args1: ['atm:gline', 'bld:xgmd', 'timing:280'], args2: [0.005, 1]}
+    func_bkg: {name: filter.atm, args1: ['atm:gline', 'bld:xgmd', 'timing:281'], args2: [0, 1]}    
+
+###################################################################################  scan
+  # scan_1d:
+  #   type: scan_var
+  #   var: 'hit_l:n'
+  #   scan: 'scan:var1'
+  #   decimal: 14
+
+  # scan_1d_func:
+  #   type: scan_var_func
+  #   func: {name: filter.n_gatedOn_abc, args1: ['hit_l:n', 'hit_l:t', 'hit_l:y', 'hit_l:z'], args2: [2986, 3015, -20, 20, -20, 20]}
+  #   func_scan: {args1: ['scan:var1']}
+  #   decimal: 14        
+
+  scan_1d_func_dest4_280_norm_xgmd:
+    type: scan_var_func
+    func: {name: filter.n_gatedOn_abc, args1: ['hit_l:n', 'hit_l:t', 'hit_l:y', 'hit_l:z'], args2: [2986, 3015, -20, 20, -20, 20]}
+    func_scan: {name: filter.dest4_280, args1: ['scan:var1', 'timing:dest', 'timing:280'], args2: [4, 1]}
+    decimal: 14     
+    func_norm: {args1: ['bld:xgmd']}
+
+  t[l]_duck_goose_gatedOn_yz:
+    type: sigbkg1d
+    plot_type: hist1d_func
+    func_sig: {name: filter.duck_goose_arr_gatedOn_xy, args1: ['hit_l:t', 'hit_l:n', 'timing:280', 'hit_l:y', 'hit_l:z'], args2:[1, -30, 30, -30, 30]}
+    func_bkg: {name: filter.duck_goose_arr_gatedOn_xy, args1: ['hit_l:t', 'hit_l:n', 'timing:282', 'hit_l:y', 'hit_l:z'], args2:[0, -30, 30, -30, 30]}
+    arange_var: {'hit_l:t': [550, 6500, 5]}
+    norm_type: sum
+    op_type: sub
+    func_norm_sig: {name: filter.duck_goose_arr1, args1: ['bld:xgmd', 'timing:280'], args2:[1]}
+    func_norm_bkg: {name: filter.duck_goose_arr1, args1: ['bld:xgmd', 'timing:282'], args2:[0]}
+
+
+  # scan_2d:
+  #   type: scan2_var
+  #   var: 'hit_l:n'
+  #   scan: ['scan:var1', 'scan:var2']
+  #   decimal: [14, 14]
+
+  # scan_2d_func:
+  #   type: scan2_var_func
+  #   func: {name: filter.n_gatedOn_abc, args1: ['hit_l:n', 'hit_l:t', 'hit_l:y', 'hit_l:z'], args2: [7200, 7221, -20, 20, -20, 20]}
+  #   func_scan1: {args1: ['scan:var1']}
+  #   func_scan2: {args1: ['scan:var2']}
+  #   decimal: [14, 14] 
+
+  # scan_2d_func_dest4_280_norm_xgmd:
+  #   type: scan2_var_func
+  #   func: {name: filter.n_gatedOn_abc, args1: ['hit_l:n', 'hit_l:t', 'hit_l:y', 'hit_l:z'], args2: [7200, 7221, -20, 20, -20, 20]}
+  #   func_scan1: {name: filter.dest4_280, args1: ['scan:var1', 'timing:dest', 'timing:280'], args2: [4, 1]}
+  #   func_scan2: {args1: ['scan:var2']}
+  #   func_norm: {args1: ['bld:xgmd']}
+  #   decimal: [14, 14]    
+    
+  # scan_t[l]_func:
+  #   type: scan_hist1d_func
+  #   func: {args1: ['hit_l:t']}
+  #   func_scan: {name: repeat.repeat, args1: ['scan:var1', 'hit_l:n']}
+  #   arange_var: [550, 7000, 5]
+  #   decimal: 14    
+
+  # scan_t[l]_func_dest4_280:
+  #   type: scan_hist1d_func
+  #   func: {args1: ['hit_l:t']}
+  #   func_scan: {name: repeat.repeat_dest4_280, args1: ['scan:var1', 'hit_l:n', 'timing:dest', 'timing:280'], args2: [4, 1]}
+  #   func_norm: {name: repeat.repeat, args1: ['bld:xgmd', 'hit_l:n']}
+  #   arange_var: [550, 7000, 5]
+  #   decimal: 14        
+
+################################################################################### filter
+#  y-z[l]_gated:
+#    type: hist2d_func
+#    func_x: {name: filter.a_gatedOn_b, args1:['hit_l:z', 'hit_l:t'], args2:[4040,4180]}
+#    func_y: {name: filter.a_gatedOn_b, args1:['hit_l:y', 'hit_l:t'], args2:[4040,4180]}
+#    arange_var: {'gated z': [-65, 65, 2], 'gated y': [-65, 65, 2]}         
+
+#  t[l]_gated:
+#    type: hist1d_func
+#    func: {name: filter.a_gatedOn_bc, args1:['hit_l:t', 'hit_l:y', 'hit_l:z'], args2:[-5, 5, -5, 5]}
+#    arange_var: {'gated t': [0, 15000, 1]}  
+
+#  z-t[l]_gated:
+#    type: hist2d_func
+#    func_x: {name: filter.a_gatedOn_b, args1:['hit_l:t', 'hit_l:y'], args2:[-10, 10]}
+#    func_y: {name: filter.a_gatedOn_b, args1:['hit_l:z', 'hit_l:y'], args2:[-10, 10]}
+#    arange_var: {'gated t': [0, 15000, 10], 'gated y': [-65, 65, 1]}    
+
+#  y-t[l]_gated:
+#    type: hist2d_func
+#    func_x: {name: filter.a_gatedOn_b, args1:['hit_l:t', 'hit_l:z'], args2:[-10, 10]}
+#    func_y: {name: filter.a_gatedOn_b, args1:['hit_l:y', 'hit_l:z'], args2:[-10, 10]}
+#    arange_var: {'gated t': [0, 15000, 10], 'gated z': [-65, 65, 1]}  
+
+#  pipico[l]_gated:
+#    type: hist2d_func
+#    func_x: {name: filter.a_gatedOn_bc, args1:['ppc_l:pp1', 'hit_l:y', 'hit_l:z'], args2:[-6, 6, -6, 6]}
+#    func_y: {name: filter.a_gatedOn_bc, args1:['ppc_l:pp2', 'hit_l:y', 'hit_l:z'], args2:[-6, 6, -6, 6]}
+#    arange_var: {'gated t1': [0, 12000, 100], 'gated t2': [0, 12000, 100]} 
+
+
+################################################################################### short detector      
+  # n[s]_rollavg:
+  #   type: rollavg
+  #   var: 'hit_s:n'
+  #   window: {'w1':1000, 'w2':1000} 
+
+  # n[s]_rollavg_mcp:
+  #   type: rollavg
+  #   var: 'len_tpks_s:mcp'
+  #   window: {'w1':500, 'w2':100}
+ 
+
+  # wf[s]:
+  #   type: multiline
+  #   y_offset: 100
+  #   var: ['wf_s:mcp', 'wf_s:u1', 'wf_s:u2', 'wf_s:v1', 'wf_s:v2', 'wf_s:w1', 'wf_s:w2']
+      
+  # padded[s]:
+  #   type: multiline
+  #   y_offset: 1600
+  #   var: ['pdd_s:mcp', 'pdd_s:u1', 'pdd_s:u2', 'pdd_s:v1', 'pdd_s:v2', 'pdd_s:w1', 'pdd_s:w2'] 
+    
+  # t[s]:
+  #   type: hist1d
+  #   arange: {'hit_s:t': [0, 15000, 5]}
+    
+  # z-y[s]:
+  #   type: hist2d
+  #   arange: {'hit_s:y': [-65, 65, 2], 'hit_s:z': [-65, 65, 2]}
+    
+  # y-t[s]:
+  #   type: hist2d
+  #   arange: {'hit_s:t': [0, 15000, 10], 'hit_s:y': [-65, 65, 2]}
+    
+  # z-t[s]:
+  #   type: hist2d
+  #   arange: {'hit_s:t': [0, 15000, 10], 'hit_s:z': [-65, 65, 2]}
+
+
+  # t_mcp[s]:
+  #   type: hist1d
+  #   arange: {'tpks_s:mcp': [0, 15000, 1]}
+
+# t_u1[s]:
+#   type: hist1d
+#   arange: {'tpks_s:u1': [0, 15000, 1]}
+
+# t_u2[s]:
+#   type: hist1d
+#   arange: {'tpks_s:u2': [0, 15000, 1]}
+
+
+# t_v1[s]:
+#   type: hist1d
+#   arange: {'tpks_s:v1': [0, 15000, 1]}
+
+
+# t_v2[s]:
+#   type: hist1d
+#   arange: {'tpks_s:v2': [0, 15000, 1]}
+
+
+# t_w1[s]:
+#   type: hist1d
+#   arange: {'tpks_s:w1': [0, 15000, 1]}
+
+
+# t_w2[s]:
+#   type: hist1d
+#   arange: {'tpks_s:w2': [0, 15000, 1]}
+
+#  t_mcp_dld[s]:
+#    type: hist1d
+#    arange: {['tpks_s:mcp','tpks_s:u1','tpks_s:u2','tpks_s:v1','tpks_s:v2','tpks_s:w1','tpks_s:w2']: [0, 15000, 1]}
+

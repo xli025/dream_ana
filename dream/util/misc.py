@@ -46,3 +46,68 @@ def mk_func(func_name: Optional[str]):
     module_name, fn = func_name.rsplit('.', 1)
     module = importlib.import_module(module_name)
     return getattr(module, fn)
+
+
+def parse_boolean(value):
+    value = value.lower()
+
+    if value in ["True","true", "yes", "y", "1", "t"]:
+        return True
+    elif value in ["False","false", "no", "n", "0", "f"]:
+        return False
+
+    return False
+
+
+def read_args():
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='preproc')
+    parser.add_argument(
+        '--exp',
+        metavar='NAME',
+        type=str,
+        default=None,
+        help='(optional) name of the experiment'
+    )
+    parser.add_argument(
+        '--run',
+        metavar='N',
+        type=int,
+        default=None,
+        help='(optional) run number; if provided, we switch to offline mode'
+    )
+
+    args = parser.parse_args()
+
+    exp     = args.exp
+    run_num = args.run
+
+    #print(f"exp: {exp!r}, runnum: {run_num!r}")
+
+    mode = 'online' if run_num is None else 'offline'
+
+    return mode, exp, run_num
+
+
+def nsify(d):
+    from types import SimpleNamespace
+    if isinstance(d, dict):
+        return SimpleNamespace(**{k: nsify(v) for k, v in d.items()})
+    elif isinstance(d, list):
+        return [nsify(x) for x in d]
+    else:
+        return d
+
+def read_config(fn,namespace=False):
+    import yaml
+    with open(fn, "r") as f:
+        params = yaml.safe_load(f)
+    if namespace: params = nsify(params)    
+    return params
+
+
+def dict_to_yaml_file(data: dict, filepath: str, *, sort_keys: bool = False) -> None:
+    import yaml
+    with open(filepath, 'w') as f:
+        yaml.safe_dump(data, f, sort_keys=sort_keys, default_flow_style=False)

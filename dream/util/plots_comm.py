@@ -8,6 +8,9 @@ from dream.util.histogram import (
 
 import numpy as np
 
+import os, sys
+custom_dir = os.getenv("CUSTOMDIR")
+sys.path.insert(0, custom_dir)
 from dream.util.misc import mk_func
 
 class BaseWorkerPlot:
@@ -41,6 +44,8 @@ class RollAvgWorkerPlot(BaseWorkerPlot):
     def accumulate(self, data_acc, out_dict):
         if self.var in data_acc:
             arr = np.atleast_1d(data_acc[self.var])
+            arr = arr[arr>0]
+            if len(arr)<=0: return
             out_dict[self.name] = np.mean(arr)
 
 
@@ -294,16 +299,21 @@ class Hist1DFuncWorkerPlot(BaseWorkerPlot):
         args = [np.atleast_1d(data_acc[k]) for k in self.func_args1 if k in data_acc]
         if len(args) != len(self.func_args1): return
         arr = self.func(*args, *self.func_args2)
-        if arr is None: return
+        if arr is None: 
+            out_dict[f'valid_{self.name}'] = False
+            return
         H_sp, _ = worker_sparse_hist1d_fast(np.atleast_1d(arr), self.edges)
         out_dict[f'h1_{self.name}'] = H_sp
         if self.norm_type:
             args_n = [np.atleast_1d(data_acc[k]) for k in self.func_args1_norm if k in data_acc]
             if len(args_n) != len(self.func_args1_norm): return
             norm_arr = self.func_norm(*args_n, *self.func_args2_norm)
-            if norm_arr is None: return
+            if np.isnan(norm_arr).any(): 
+                out_dict[f'valid_{self.name}'] = False
+                return
             val = np.sum(norm_arr) if self.norm_type=='sum' else norm_arr.size
             out_dict[f'norm_{self.name}'] = float(val)
+        out_dict[f'valid_{self.name}'] = True
 
 
 class RollAvgFuncWorkerPlot(BaseWorkerPlot):
@@ -319,6 +329,8 @@ class RollAvgFuncWorkerPlot(BaseWorkerPlot):
         if len(args) != len(self.func_args1): return
         arr = self.func(*args, *self.func_args2)
         if arr is None: return
+        arr = arr[arr>0]
+        if len(arr)<=0: return
         out_dict[self.name] = np.mean(np.atleast_1d(arr))
 
 
@@ -347,20 +359,28 @@ class ScanVarFuncWorkerPlot(BaseWorkerPlot):
         args_v = [np.atleast_1d(data_acc[k]) for k in self.func_args1_var if k in data_acc]
         if len(args_v) != len(self.func_args1_var): return
         arr = np.atleast_1d(self.func_var(*args_v, *self.func_args2_var))
+        if len(arr) == 0: 
+            print(self.name+': optimized variable is empty.')
+            return
         args_s = [np.atleast_1d(data_acc[k]) for k in self.func_args1_scan if k in data_acc]
         if len(args_s) != len(self.func_args1_scan): return
         arr_scan_repeat =  self.func_scan(*args_s, *self.func_args2_scan)
-     
-        if np.isnan(arr_scan_repeat).any(): return
-  
+        #if np.isnan(arr_scan_repeat).any(): return
         arr_scan = np.atleast_1d(arr_scan_repeat)
-        
+        inds_nan = np.isnan(arr_scan)
         arr_norm = None
         if self.func_norm:
             args_n = [np.atleast_1d(data_acc[k]) for k in self.func_args1_norm if k in data_acc]
             if len(args_n) != len(self.func_args1_norm): return
             arr_norm = np.atleast_1d(self.func_norm(*args_n, *self.func_args2_norm))
-        keys, sums, counts = worker_sparse_mean_sort(arr, arr_scan, self.decimals, arr_norm)
+            inds_nan = inds_nan|(np.isnan(arr_norm))
+        inds_nan = ~inds_nan
+        if inds_nan.sum()<=0: 
+            return
+        if arr_norm is None:
+            keys, sums, counts = worker_sparse_mean_sort(arr[inds_nan], arr_scan[inds_nan], self.decimals, arr_norm)
+        else:
+            keys, sums, counts = worker_sparse_mean_sort(arr[inds_nan], arr_scan[inds_nan], self.decimals, arr_norm[inds_nan])
         out_dict[self.name] = (keys, sums, counts)
 
 
@@ -402,6 +422,9 @@ class Scan2VarFuncWorkerPlot(BaseWorkerPlot):
                 return
             args_v.append(np.atleast_1d(data_acc[k]))
         arr = np.atleast_1d(self.func_var(*args_v, *self.func_args2_var))
+        if len(arr) == 0: 
+            print(self.name+': optimized variable is empty.')
+            return        
         # Compute first scan axis
         args1 = []
         for k in self.func_args1_s1:
@@ -409,7 +432,8 @@ class Scan2VarFuncWorkerPlot(BaseWorkerPlot):
                 return
             args1.append(np.atleast_1d(data_acc[k]))
         s1 = np.atleast_1d(self.func_s1(*args1, *self.func_args2_s1))
-        if np.isnan(s1).any(): return
+        #if np.isnan(s1).any(): return
+        inds_nan = np.isnan(s1)
         # Compute second scan axis
         args2 = []
         for k in self.func_args1_s2:
@@ -417,7 +441,8 @@ class Scan2VarFuncWorkerPlot(BaseWorkerPlot):
                 return
             args2.append(np.atleast_1d(data_acc[k]))
         s2 = np.atleast_1d(self.func_s2(*args2, *self.func_args2_s2))
-        if np.isnan(s2).any(): return
+        #if np.isnan(s2).any(): return
+        inds_nan = inds_nan|(np.isnan(s2))
         # Compute normalization array if provided
         arr_norm = None
         if self.func_norm:
@@ -427,10 +452,19 @@ class Scan2VarFuncWorkerPlot(BaseWorkerPlot):
                     return
                 args_n.append(np.atleast_1d(data_acc[k]))
             arr_norm = np.atleast_1d(self.func_norm(*args_n, *self.func_args2_norm))
-        # Compute sparse 2D mean
-        k1, k2, sums_mat, counts_mat = worker_sparse_mean_sort2d(
-            arr, s1, s2, self.dec1, self.dec2, arr_norm
-        )
+            inds_nan = inds_nan|(np.isnan(arr_norm))
+
+        inds_nan = ~inds_nan
+        if inds_nan.sum()<=0: 
+            return
+        if arr_norm is None:           
+            k1, k2, sums_mat, counts_mat = worker_sparse_mean_sort2d(
+                arr[inds_nan], s1[inds_nan], s2[inds_nan], self.dec1, self.dec2, arr_norm
+            )
+        else:
+            k1, k2, sums_mat, counts_mat = worker_sparse_mean_sort2d(
+                arr[inds_nan], s1[inds_nan], s2[inds_nan], self.dec1, self.dec2, arr_norm[inds_nan]
+            )            
         out_dict[self.name] = (k1, k2, sums_mat, counts_mat)
 
 
@@ -476,7 +510,8 @@ class ScanHist1DFuncWorkerPlot(BaseWorkerPlot):
                 return
             args_s.append(np.atleast_1d(data_acc[k]))
         arr_scan = np.atleast_1d(self.func_scan(*args_s, *self.func_args2_scan))
-        if np.isnan(arr_scan).any(): return
+        #if np.isnan(arr_scan).any(): return
+        inds_nan = np.isnan(arr_scan)
         # gather norm var if any
         arr_norm = None
         if self.func_norm:
@@ -486,10 +521,20 @@ class ScanHist1DFuncWorkerPlot(BaseWorkerPlot):
                     return
                 args_n.append(np.atleast_1d(data_acc[k]))
             arr_norm = np.atleast_1d(self.func_norm(*args_n, *self.func_args2_norm))
-        # compute sparse histogram
-        H_sp, keys, counts = worker_sparse_sort1d_fast(
-            arr, arr_scan, self.edges, self.decimals, arr_norm
-        )
+            inds_nan = inds_nan|(np.isnan(arr_norm))
+        inds_nan = ~inds_nan
+        if inds_nan.sum()<=0: 
+            return
+        if arr_norm is None:            
+            # compute sparse histogram
+            H_sp, keys, counts = worker_sparse_sort1d_fast(
+                arr[inds_nan], arr_scan[inds_nan], self.edges, self.decimals, arr_norm
+            )
+        else:
+            # compute sparse histogram
+            H_sp, keys, counts = worker_sparse_sort1d_fast(
+                arr[inds_nan], arr_scan[inds_nan], self.edges, self.decimals, arr_norm[inds_nan]
+            )            
         out_dict[self.name] = (H_sp, keys, counts)
 
 
